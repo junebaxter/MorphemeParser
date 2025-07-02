@@ -68,41 +68,57 @@ def align (lstr1, lstr2):
     len1 = len(lstr1)
     len2 = len(lstr2)
 
-    # initialize the first matrix row (all deletions)
-    lastrow_scores = [_penalty('-') * i for i in range(len1 + 1)]
-    lastrow_strings = [(lstr1[:i], ['-'] * i) for i in range(len1 + 1)]
+    # initialize the first matrix row (all deletions) and column (all insertions)
+    scores = [[(None, 0)] + [('d', _penalty('-') * i) for i in range(1, len1 + 1)]] + \
+        [[('i', _penalty('-') * i)] for i in range(1, len2 + 1)]
 
-    # calculate each subsequent matrix row
+    # fill out the score matrix
     for j in range(len2):
-        # initialize the first row element (all insertions)
-        row_scores = [_penalty('-') * (j + 1)]
-        row_strings = [(['-'] * (j + 1), lstr2[:j + 1])]
-
         for i in range(len1):
             # calculate scores for matching, insertion, and deletion
-            match_score = lastrow_scores[i] + _penalty((lstr1[i], lstr2[j]))
-            ins_score = lastrow_scores[i + 1] + _penalty('-')
-            del_score = row_scores[i] + _penalty('-')
+            match_score = scores[j][i][1] + _penalty((lstr1[i], lstr2[j]))
+            ins_score = scores[j][i + 1][1] + _penalty('-')
+            del_score = scores[j + 1][i][1] + _penalty('-')
 
-            score = min(match_score, ins_score, del_score)
-            row_scores.append(score)
+            minscore = min(match_score, ins_score, del_score)
 
             # derive new string alignment for the best scoring option
-            if score == match_score:
-                # matching: add next character for both strings
-                row_strings.append((lastrow_strings[i][0] + [lstr1[i]], lastrow_strings[i][1] + [lstr2[j]]))
-            elif score == ins_score:
-                # insertion: add gap for string 1, next character for string 2
-                row_strings.append((lastrow_strings[i + 1][0] + ['-'], lastrow_strings[i][1] + [lstr2[j]]))
+            if minscore == match_score:
+                scores[j + 1].append(('m', minscore))
+            elif minscore == ins_score:
+                scores[j + 1].append(('i', minscore))
             else:
-                # deletion: add next character for string 1, gap for string 2
-                row_strings.append((row_strings[i][0] + [lstr1[i]], row_strings[i][1] + ['-']))
+                scores[j + 1].append(('d', minscore))
 
-        lastrow_scores = row_scores
-        lastrow_strings = row_strings
+    # final score
+    ascore = round(scores[len2][len1][1], 2)
 
-    # optimal alignment: final element of the final row of the matrix
-    return (row_strings[len1], round(row_scores[len1], 2))
+    # backtrack to get the string alignment
+    astr1 = []
+    astr2 = []
+
+    i = len1
+    j = len2
+    indel = scores[j][i][0]
+
+    while indel:
+        if indel == 'm':
+            i -= 1
+            j -= 1
+            astr1.append(lstr1[i])
+            astr2.append(lstr2[j])
+        elif indel == 'i':
+            j -= 1
+            astr1.append('-')
+            astr2.append(lstr2[j])
+        else:
+            j -= 1
+            astr1.append(lstr1[i])
+            astr2.append('-')
+
+        indel = scores[j][i][0]
+
+    return ((astr1[::-1], astr2[::-1]), ascore)
 
 
 if __name__ == '__main__':
