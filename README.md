@@ -1,0 +1,1 @@
+This is an implementation of the morpheme parser described in Wang and Hayes (2025), "Learning Phonological Underlying Representations: The Role of Abstractness" (https://doi.org/10.1162/ling_a_00553).
